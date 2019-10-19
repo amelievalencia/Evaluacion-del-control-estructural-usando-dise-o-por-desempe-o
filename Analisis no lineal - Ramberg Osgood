@@ -1,0 +1,46 @@
+function [X] = analisis_NL_ramberg_osgod(M,K,C,Fy,r,xg,S,R,dt)
+% Analisis no lineal dinamico de porticos planos usando el modelo de 
+% Ramberg- Osgod. 
+% ENTRADAS: 
+% M: Matriz de masa (nxn)
+% K: Matriz de rigidez  (nxn)
+% C: Matriz de amortiguamiento (nxn)
+% Fy: Esfuerzo de fluencia (1x1)
+% r: Parametro modelo no lineal (1x1) 
+% xg: Se�al de entrada (Nx1)
+%--------------------------------------------------------------------------
+% SALIDAS 
+% X: Matriz de resultados (3xn x N) 
+N   = length(xg); 
+dim = length(M);
+eta = ones(dim,1);
+gamma = ones(dim,1); 
+x0  = zeros(3*dim,1); 
+d   = length(x0); 
+X   = zeros(d,N); 
+X(:,1) = x0; 
+Fi     = zeros(dim,1); 
+K      = diag(K); 
+
+f =@(i,X,F) [X(dim+1:2*dim); 
+             M\(-M*eta*xg(i)-C*X(dim+1:2*dim)-X(2*dim+1:end)-gamma*(1/R)*S*X(1:2*dim)); 
+             K*X(dim+1:2*dim)./(1+abs((X(2*dim+1:end)-F)./(2*Fy)).^(r-1))]; 
+
+for i=2:N;
+    dx1 = f(i,X(:,i-1),Fi)*dt; 
+    dx2 = f(i,X(:,i-1)+dx1/2,Fi)*dt; 
+    dx3 = f(i,X(:,i-1)+dx2/2,Fi)*dt; 
+    dx4 = f(i,X(:,i-1)+dx3,Fi)*dt;
+    X(:,i) = X(:,i-1)+(dx1+2*dx2+2*dx3+dx4)/6;  
+    for j = 1:dim; 
+        if X(dim+j,i)*X(dim+j,i-1) < 0
+            Fi(j) = X(2*dim+j,i); 
+        end
+    end 
+end
+
+
+
+
+end
+
