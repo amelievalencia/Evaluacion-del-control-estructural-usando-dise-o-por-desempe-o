@@ -1,0 +1,99 @@
+clc, close all, clear all; 
+el_centro
+format short g
+xg = xg/(0.26*9.81)*(1*9.81); 
+%% Parameters
+M =  1*diag([109.78,109.62,109.24,108.86,108.84,107.03]); 
+k0 = 100*([315.284,225.167,169.665,124.242,87.872,59.532]).'; 
+K = [k0(1)+k0(2)  -k0(2)       0        0          0       0;
+       -k0(2)   k0(2)+k0(3)  -k0(3)      0          0       0; 
+       0         -k0(3)   k0(3)+k0(4)  -k0(5)       0       0; 
+       0          0       -k0(5)    k0(4)+k0(5)   -k0(6)    0; 
+       0          0         0        -k0(6)    k0(5)+k0(6) 0;
+       0          0         0        0          0       k0(6)]; 
+   
+w = [9.79,24.05,37.40,49.56,63.44,83.76]; 
+xi = 0.03; 
+a  = xi*2*w(1)*w(2)/(w(1)+w(2)); 
+b  = xi*2/(w(1)+w(2));
+C  = a*M+b*(K);
+N  = length(xg); 
+Fy = 500; 
+r  = 5; 
+
+
+%% Analisis Inicial
+x0 = zeros(18,1);
+dim = length(x0)/3;  
+eta = ones(dim,1); 
+dt  = 0.02; 
+d   = length(x0); 
+X   = zeros(d,N); 
+X(:,1) = x0; 
+Fi     = zeros(dim,1); 
+load   = zeros(dim,1); 
+k      = zeros(dim,1); 
+%K      = diag(K); 
+
+gamma = [1,1,1,1,1,1].'; 
+alpha = 0.0e1; 
+%alpha = 2e1; 
+R = 1e-2; 
+S = alpha*[1 1 1 1 1 1 1 1 1 1 1 1]; 
+
+%{
+f =@(i,X,F) [X(dim+1:2*dim); 
+             M\(-M*eta*xg(i)-C*X(dim+1:2*dim)-X(2*dim+1:end)-gamma*(1/R)*S*X(1:2*dim)); 
+             K.*X(dim+1:2*dim)./(1+abs((X(2*dim+1:end)-F)./(2*Fy)).^(r-1))]; 
+
+for i=2:N;
+    dx1 = f(i,X(:,i-1),Fi)*dt; 
+    dx2 = f(i,X(:,i-1)+dx1/2,Fi)*dt; 
+    dx3 = f(i,X(:,i-1)+dx2/2,Fi)*dt; 
+    dx4 = f(i,X(:,i-1)+dx3,Fi)*dt;
+    X(:,i) = X(:,i-1)+(dx1+2*dx2+2*dx3+dx4)/6;  
+    for j = 1:dim; 
+        if X(dim+j,i)*X(dim+j,i-1) < 0
+            Fi(j) = X(2*dim+j,i); 
+        end
+    end 
+end
+%}
+
+[X] = analisis_NL_ramberg_osgod(M,K,C,Fy,r,xg,S,R,0.02);
+
+fuente = 30; grosor = 1.50; 
+figure 
+hold on 
+plot(X(1,:),'k','linewidth',grosor)
+plot(X(2,:),'r','linewidth',grosor)
+plot(X(3,:),'g','linewidth',grosor)
+plot(X(4,:),'c','linewidth',grosor)
+plot(X(5,:),'m','linewidth',grosor)
+plot(X(6,:),'b','linewidth',grosor)
+h = legend('Piso 1','Piso 2','Piso 3','Piso 4','Piso 5','Piso 6'); 
+ylabel('Desplazamiento [m]','fontsize',fuente)
+xlabel('t [s]','fontsize',fuente)         
+set(h,'Fontsize',fuente)
+set(gca,'FontSize',fuente)
+grid on 
+
+figure 
+hold on 
+plot(X(1,:),X(13,:)/100,'k','linewidth',grosor)
+%plot(X(2,:),X(14,:),'b','linewidth',grosor)
+%plot(X(3,:),X(15,:),'r','linewidth',grosor)
+%plot(X(4,:),X(16,:),'g','linewidth',grosor)
+%plot(X(5,:),X(17,:),'c','linewidth',grosor)
+%plot(X(6,:),X(18,:),'m','linewidth',grosor)
+ylabel('Fuerza F [kN]','fontsize',fuente)
+xlabel('Desplazamiento [m]','fontsize',fuente)         
+set(gca,'FontSize',fuente)
+grid on 
+grid on 
+
+figure 
+acel = diff(X(12,:))/dt; 
+plot(acel)
+
+return 
